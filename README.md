@@ -5,9 +5,9 @@
 [![Colosseum Frontier Hackathon](https://img.shields.io/badge/Hackathon-Colosseum_Frontier-9945FF?style=for-the-badge&logo=solana)](https://colosseum.com/frontier)
 [![Status: Live MVP](https://img.shields.io/badge/Status-Live_MVP-success?style=for-the-badge)](#)
 
-> **Live Demo:** [Insert your Vercel/GitHub Pages link here]
+> **Live Demo:** [https://hydro-sync-three.vercel.app/]
 > 
-> **Pitch Video:** [Insert your YouTube/Twitter video link here]
+> **Pitch Video:** [https://youtu.be/FKR4YLF-inU?si=r0tP3muEkYD5mvav]
 
 ---
 
