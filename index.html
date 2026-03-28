@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HydroSync | Decentralized Environmental Oracle</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Solana Web3.js (Version 1 - Locked for stability) -->
+    <script src="https://unpkg.com/@solana/web3.js@1/lib/index.iife.js"></script>
+    
+    <style>
+        ::-webkit-scrollbar { display: none; }
+        body { background-color: #040d1a; color: white; font-family: 'Inter', sans-serif; }
+        .bg-card { background-color: #0a1628; border: 1px solid #1a2c42; }
+        .text-solana-green { color: #14F195; }
+        .bg-solana-green { background-color: #14F195; }
+        .border-solana-green { border-color: #14F195; }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <!-- Mobile App Container -->
+    <div class="w-full max-w-[400px] h-[850px] max-h-[90vh] bg-[#040d1a] shadow-2xl sm:rounded-[40px] sm:border-[8px] sm:border-gray-900 flex flex-col relative overflow-hidden">
+        
+        <!-- Header -->
+        <div class="px-6 pt-8 pb-4 border-b border-[#1a2c42] flex justify-between items-center bg-[#0a1628]">
+            <h1 class="text-xl font-bold tracking-tight flex items-center gap-2">
+                <i data-lucide="droplet" class="text-blue-400 w-5 h-5"></i> HydroSync
+            </h1>
+            <div id="networkStatus" class="flex items-center gap-2 text-xs font-bold text-solana-green bg-green-500/20 px-2 py-1 rounded border border-solana-green/30">
+                <span class="w-2 h-2 rounded-full bg-solana-green animate-pulse"></span> ONLINE
+            </div>
+        </div>
+
+        <!-- Scrollable Content -->
+        <div class="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+            
+            <!-- Data Entry Form -->
+            <div class="bg-card rounded-[20px] p-5 shadow-lg">
+                <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Log Water Quality</h2>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-gray-500 text-xs font-bold mb-1">Station ID (Ikpoba River)</label>
+                        <input type="text" id="stationId" value="ST-04-ERUVBI" class="w-full bg-[#040d1a] text-white text-sm border border-[#1a2c42] rounded-lg py-3 px-4 outline-none focus:border-blue-400">
+                    </div>
+                    <div class="flex gap-4">
+                        <div class="flex-1">
+                            <label class="block text-gray-500 text-xs font-bold mb-1">pH Level</label>
+                            <input type="number" id="phLevel" placeholder="e.g. 6.8" class="w-full bg-[#040d1a] text-white text-sm border border-[#1a2c42] rounded-lg py-3 px-4 outline-none focus:border-blue-400">
+                        </div>
+                        <div class="flex-1">
+                            <label class="block text-gray-500 text-xs font-bold mb-1">Turbidity (NTU)</label>
+                            <input type="number" id="turbidity" placeholder="e.g. 14.3" class="w-full bg-[#040d1a] text-white text-sm border border-[#1a2c42] rounded-lg py-3 px-4 outline-none focus:border-blue-400">
+                        </div>
+                    </div>
+                    
+                    <!-- Save Offline Button -->
+                    <button onclick="saveDataOffline()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded-xl transition duration-300 flex justify-center items-center gap-2">
+                        <i data-lucide="save" class="w-4 h-4"></i> Save to Local Cache
+                    </button>
+                </div>
+            </div>
+
+            <!-- Pending Sync Queue -->
+            <div class="bg-card rounded-[20px] p-5 shadow-lg">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider">Pending Sync</h2>
+                    <span id="queueCount" class="bg-gray-800 text-white text-xs px-2 py-1 rounded-full">0 items</span>
+                </div>
+                
+                <div id="queueList" class="text-xs text-gray-500 mb-4 h-20 overflow-y-auto bg-[#040d1a] p-2 rounded border border-[#1a2c42]">
+                    No data pending.
+                </div>
+
+                <!-- Sync to Solana Button -->
+                <button onclick="syncToSolana()" id="syncBtn" class="w-full bg-solana-green hover:bg-green-400 text-black font-extrabold py-3 px-6 rounded-xl transition duration-300 flex justify-center items-center gap-2 opacity-50 cursor-not-allowed" disabled>
+                    <i data-lucide="upload-cloud" class="w-4 h-4"></i> Push to Blockchain
+                </button>
+            </div>
+
+            <!-- Transaction Status (Reward UI) -->
+            <div id="txResult" class="hidden p-4 rounded-xl border border-solana-green bg-green-500/10 text-xs text-solana-green break-all relative overflow-hidden">
+                <div class="flex items-center gap-3 mb-3">
+                    <div class="bg-solana-green text-black rounded-full p-2 flex-shrink-0">
+                        <i data-lucide="coins" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        ✅ <strong>Data Settled on Devnet!</strong><br>
+                        <span class="text-white font-bold text-sm">+0.001 SOL Reward Triggered</span>
+                    </div>
+                </div>
+                <a id="explorerLink" href="#" target="_blank" class="underline text-gray-400 hover:text-white mt-2 block">View Data Log on Solana Explorer</a>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // Initialize all icons on load
+        lucide.createIcons();
+
+        // 1. OFFLINE STORAGE LOGIC
+        let offlineQueue = JSON.parse(localStorage.getItem('hydroQueue')) || [];
+        updateQueueUI();
+
+        function saveDataOffline() {
+            const station = document.getElementById('stationId').value;
+            const ph = document.getElementById('phLevel').value;
+            const turb = document.getElementById('turbidity').value;
+
+            if(!ph || !turb) return alert("Please enter pH and Turbidity.");
+
+            const payload = {
+                id: crypto.randomUUID(),
+                station: station,
+                ph: parseFloat(ph),
+                turbidity: parseFloat(turb),
+                timestamp: new Date().toISOString()
+            };
+
+            offlineQueue.push(payload);
+            localStorage.setItem('hydroQueue', JSON.stringify(offlineQueue));
+            
+            document.getElementById('phLevel').value = '';
+            document.getElementById('turbidity').value = '';
+            
+            updateQueueUI();
+            document.getElementById('txResult').classList.add('hidden');
+        }
+
+        function updateQueueUI() {
+            document.getElementById('queueCount').innerText = `${offlineQueue.length} items`;
+            const syncBtn = document.getElementById('syncBtn');
+            const queueList = document.getElementById('queueList');
+
+            if(offlineQueue.length > 0) {
+                syncBtn.disabled = false;
+                syncBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                queueList.innerHTML = offlineQueue.map(item => `📦 ${item.station} | pH: ${item.ph} | ${new Date(item.timestamp).toLocaleTimeString()}`).join('<br>');
+            } else {
+                syncBtn.disabled = true;
+                syncBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                queueList.innerHTML = "No data pending.";
+            }
+        }
+
+        // 2. REAL ON-CHAIN SETTLEMENT LOGIC
+        async function syncToSolana() {
+            if(offlineQueue.length === 0) return;
+
+            const syncBtn = document.getElementById('syncBtn');
+            syncBtn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Syncing to Devnet...`;
+            lucide.createIcons();
+            syncBtn.disabled = true;
+
+            try {
+                // Connect to Solana Devnet
+                const connection = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl('devnet'), 'confirmed');
+                
+                // --- 🚨 HACKATHON TREASURY SETUP 🚨 ---
+                // Paste the 64 numbers you generated in the console right below inside the brackets!
+                const secretKeyArray = new Uint8Array([ 
+                198,97,58,213,199,216,153,254,189,247,104,32,82,220,141,25,148,44,231,8,44,132,4,13,227,175,50,166,219,131,156,88,117,127,36,210,5,218,112,235,131,59,79,37,214,221,11,73,68,185,233,175,35,208,91,229,170,225,45,234,149,116,177,162
+                ]); 
+                
+                if (secretKeyArray.length !== 64) {
+                    throw new Error("Invalid Private Key Array! Did you paste the 64 numbers from the console?");
+                }
+
+                // Reconstruct the keypair from your array
+                const feePayer = solanaWeb3.Keypair.fromSecretKey(secretKeyArray);
+                // ----------------------------------------
+
+                // Prepare the JSON payload
+                const payloadString = JSON.stringify(offlineQueue);
+
+                // Create a transaction using the Solana Memo Program
+                const memoProgramId = new solanaWeb3.PublicKey("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr");
+                
+                const instruction = new solanaWeb3.TransactionInstruction({
+                    keys: [{ pubkey: feePayer.publicKey, isSigner: true, isWritable: true }],
+                    programId: memoProgramId,
+                    data: new
+                    TextEncoder (). encode(payloadString),
+                });
+
+                const transaction = new solanaWeb3.Transaction().add(instruction);
+                
+                // Send and confirm transaction (Paid for by your funded Treasury)
+                const signature = await solanaWeb3.sendAndConfirmTransaction(connection, transaction, [feePayer]);
+
+                // Success! Clear the queue.
+                offlineQueue = [];
+                localStorage.removeItem('hydroQueue');
+                updateQueueUI();
+
+                // Show the success UI with Explorer Link
+                const txResult = document.getElementById('txResult');
+                const explorerLink = document.getElementById('explorerLink');
+                txResult.classList.remove('hidden');
+                
+                // REAL link to the Solana Explorer
+                explorerLink.href = `https://explorer.solana.com/tx/${signature}?cluster=devnet`;
+                
+                // Reset button text
+                syncBtn.innerHTML = `<i data-lucide="upload-cloud" class="w-4 h-4"></i> Push to Blockchain`;
+                lucide.createIcons();
+
+            } catch (error) {
+                console.error(error);
+                alert("Network error: " + error.message);
+                syncBtn.innerHTML = `<i data-lucide="upload-cloud" class="w-4 h-4"></i> Push to Blockchain`;
+                syncBtn.disabled = false;
+                lucide.createIcons();
+            }
+        }
+    </script>
+</body>
+</html>
